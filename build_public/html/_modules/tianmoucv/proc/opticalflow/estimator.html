@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tianmoucv.proc.opticalflow.estimator &mdash; Tianmouc alpha 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=406e4f49"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../../../genindex.html" />
+    <link rel="search" title="搜索" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Tianmouc
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">Outline</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tianmoucv/introduction.html">TianMouCV算法库</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Tianmouc</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">tianmoucv.proc.opticalflow.estimator</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>tianmoucv.proc.opticalflow.estimator 源代码</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">.basic</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.isp</span> <span class="kn">import</span> <span class="o">*</span>
+
+<div class="viewcode-block" id="local_norm">
+<a class="viewcode-back" href="../../../../tianmoucv/introduction.html#tianmoucv.proc.opticalflow.estimator.local_norm">[文档]</a>
+<span class="k">def</span> <span class="nf">local_norm</span><span class="p">(</span><span class="n">Diff</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    梯度归一化</span>
+<span class="sd">    </span>
+<span class="sd">    parameter:</span>
+<span class="sd">        :param SD: 待归一化项</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">grad_norm</span> <span class="o">=</span> <span class="p">(</span><span class="n">Diff</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">Diff</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mf">1e-18</span><span class="p">)</span><span class="o">**</span><span class="mf">0.5</span> <span class="o">+</span> <span class="mf">1e-9</span>
+    <span class="k">return</span> <span class="n">Diff</span> <span class="o">/</span> <span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">grad_norm</span><span class="p">)</span></div>
+
+    
+<span class="c1"># ===============================================================</span>
+<span class="c1"># LK方法计算稠密光流 </span>
+<span class="c1"># ===============================================================</span>
+<div class="viewcode-block" id="LK_optical_flow">
+<a class="viewcode-back" href="../../../../tianmoucv/introduction.html#tianmoucv.proc.opticalflow.estimator.LK_optical_flow">[文档]</a>
+<span class="k">def</span> <span class="nf">LK_optical_flow</span><span class="p">(</span><span class="n">SD</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="p">,</span><span class="n">TD</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">win</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                    <span class="n">stride</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">ifInterploted</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>    
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    LK方法计算稠密光流</span>
+<span class="sd">    </span>
+<span class="sd">    .. math:: [dx,dy]*[dI/dx,dI/dy]^T + dI/dt = 0</span>
+
+<span class="sd">    parameter:</span>
+<span class="sd">        :param SD: 原始SD，SD[0,1]: x,y方向上的梯度,[2,h,w],torch.Tensor</span>
+<span class="sd">        :param TD: 原始SD，TD[0]: t方向上的梯度,[1,h,w],torch.Tensor</span>
+<span class="sd">        :param win=5: 取邻域做最小二乘,邻域大小</span>
+<span class="sd">        :param stride=0: 取邻域做最小二乘,计算步长</span>
+<span class="sd">        :param mask=None: 特征点tensor,binary Tensor,[h,w]</span>
+<span class="sd">        :param ifInterploted = False: 计算结果是否与COP等大</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">I</span> <span class="o">=</span> <span class="n">SD</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">J</span> <span class="o">=</span> <span class="n">SD</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="n">SD</span> <span class="o">=</span> <span class="n">SD</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+    <span class="n">TD</span> <span class="o">=</span> <span class="n">TD</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+    
+    <span class="n">i_step</span>  <span class="o">=</span> <span class="n">win</span><span class="o">//</span><span class="mi">2</span>
+    <span class="n">j_step</span>  <span class="o">=</span> <span class="n">win</span><span class="o">//</span><span class="mi">2</span>
+    <span class="k">if</span> <span class="n">stride</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">stride</span> <span class="o">=</span>  <span class="n">win</span><span class="o">//</span><span class="mi">2</span>
+    <span class="n">flow</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span><span class="n">I</span><span class="o">//</span><span class="n">stride</span><span class="p">,</span><span class="n">J</span><span class="o">//</span><span class="n">stride</span><span class="p">])</span>
+    
+    <span class="c1">#加权</span>
+    <span class="n">Ix</span> <span class="o">=</span> <span class="n">SD</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+    <span class="n">Iy</span> <span class="o">=</span> <span class="n">SD</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+    <span class="n">It</span> <span class="o">=</span> <span class="n">TD</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+
+    <span class="n">musk</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">It</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">4</span>
+    <span class="n">It</span> <span class="o">*=</span> <span class="n">musk</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i_step</span><span class="p">,</span><span class="n">I</span><span class="o">-</span><span class="n">i_step</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">stride</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">j_step</span><span class="p">,</span><span class="n">J</span><span class="o">-</span><span class="n">j_step</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">stride</span><span class="p">):</span>
+            <span class="n">dxdy</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c1">#忽略一些边界不稠密的点</span>
+            <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="n">i_step</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">i_step</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">j</span><span class="o">-</span><span class="n">j_step</span><span class="p">:</span><span class="n">j</span><span class="o">+</span><span class="n">j_step</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="c1">#取一个小窗口</span>
+            <span class="n">Ix_win</span> <span class="o">=</span> <span class="n">Ix</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="n">i_step</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">i_step</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">j</span><span class="o">-</span><span class="n">j_step</span><span class="p">:</span><span class="n">j</span><span class="o">+</span><span class="n">j_step</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">Iy_win</span> <span class="o">=</span> <span class="n">Iy</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="n">i_step</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">i_step</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">j</span><span class="o">-</span><span class="n">j_step</span><span class="p">:</span><span class="n">j</span><span class="o">+</span><span class="n">j_step</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">It_win</span> <span class="o">=</span> <span class="n">It</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="n">i_step</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">i_step</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">j</span><span class="o">-</span><span class="n">j_step</span><span class="p">:</span><span class="n">j</span><span class="o">+</span><span class="n">j_step</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>            
+            <span class="n">A</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">Ix_win</span><span class="p">,</span><span class="n">Iy_win</span><span class="p">],</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">B</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">It_win</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">AT_B</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span><span class="n">B</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">AT_B</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">flow</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">i</span><span class="o">//</span><span class="n">stride</span><span class="p">,</span><span class="n">j</span><span class="o">//</span><span class="n">stride</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">flow</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="n">i</span><span class="o">//</span><span class="n">stride</span><span class="p">,</span><span class="n">j</span><span class="o">//</span><span class="n">stride</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">continue</span>
+            
+            <span class="n">AT_A</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span><span class="n">A</span><span class="p">)</span>
+            
+            <span class="k">try</span> <span class="p">:</span>
+                <span class="n">dxdy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">AT_A</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">AT_B</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+                <span class="n">flow</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">i</span><span class="o">//</span><span class="n">stride</span><span class="p">,</span><span class="n">j</span><span class="o">//</span><span class="n">stride</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxdy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">flow</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="n">i</span><span class="o">//</span><span class="n">stride</span><span class="p">,</span><span class="n">j</span><span class="o">//</span><span class="n">stride</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxdy</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span> <span class="p">:</span>
+                <span class="k">pass</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ifInterploted</span><span class="p">:</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">I</span><span class="p">,</span><span class="n">J</span><span class="o">*</span><span class="mi">2</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">I</span><span class="p">,</span><span class="n">J</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">flow</span></div>
+
+
+
+<span class="c1"># ===============================================================</span>
+<span class="c1"># 多尺度HS方法计算稠密光流，效果更好</span>
+<span class="c1"># ===============================================================</span>
+<div class="viewcode-block" id="HS_optical_flow">
+<a class="viewcode-back" href="../../../../tianmoucv/introduction.html#tianmoucv.proc.opticalflow.estimator.HS_optical_flow">[文档]</a>
+<span class="k">def</span> <span class="nf">HS_optical_flow</span><span class="p">(</span><span class="n">SD</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span><span class="n">TD</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+                    <span class="n">ifInterploted</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span><span class="n">epsilon</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span><span class="n">maxIteration</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span><span class="n">scales</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span><span class="n">labmda</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>    
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    多尺度HS方法计算稠密光流，效果更好</span>
+<span class="sd">    parameter:</span>
+<span class="sd">        :param SD: 原始SD，SD[0,1]: x,y方向上的梯度,[2,h,w],torch.Tensor</span>
+<span class="sd">        :param TD: 原始SD，TD[0]: t方向上的梯度,[1,h,w],torch.Tensor</span>
+<span class="sd">        :param ifInterploted = False: 计算结果是否与COP等大</span>
+<span class="sd">        :param epsilon = 1e-8: 收敛界</span>
+<span class="sd">        :param maxIteration = 50: 最大迭代次数</span>
+<span class="sd">        :param scales = 4: 尺度数量</span>
+<span class="sd">        :param labmda=10: 惩罚因子,越大光流越平滑</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">ld</span> <span class="o">=</span> <span class="n">labmda</span>
+    <span class="k">def</span> <span class="nf">uitter</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">,</span><span class="n">Ix</span><span class="p">,</span><span class="n">Iy</span><span class="p">,</span><span class="n">It</span><span class="p">,</span><span class="n">lambdaL</span><span class="p">):</span>
+        <span class="n">newu</span> <span class="o">=</span> <span class="n">u</span> <span class="o">-</span> <span class="n">Ix</span> <span class="o">*</span> <span class="p">(</span><span class="n">Ix</span><span class="o">*</span><span class="n">u</span> <span class="o">+</span> <span class="n">Iy</span> <span class="o">*</span> <span class="n">v</span> <span class="o">+</span> <span class="n">It</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">lambdaL</span><span class="o">*</span><span class="n">lambdaL</span> <span class="o">+</span> <span class="n">Ix</span><span class="o">*</span><span class="n">Ix</span> <span class="o">+</span> <span class="n">Iy</span><span class="o">*</span><span class="n">Iy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">newu</span>
+    <span class="k">def</span> <span class="nf">vitter</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">,</span><span class="n">Ix</span><span class="p">,</span><span class="n">Iy</span><span class="p">,</span><span class="n">It</span><span class="p">,</span><span class="n">lambdaL</span><span class="p">):</span>
+        <span class="n">newv</span> <span class="o">=</span> <span class="n">v</span> <span class="o">-</span> <span class="n">Iy</span> <span class="o">*</span> <span class="p">(</span><span class="n">Ix</span><span class="o">*</span><span class="n">u</span> <span class="o">+</span> <span class="n">Iy</span> <span class="o">*</span> <span class="n">v</span> <span class="o">+</span> <span class="n">It</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">lambdaL</span><span class="o">*</span><span class="n">lambdaL</span> <span class="o">+</span> <span class="n">Ix</span><span class="o">*</span><span class="n">Ix</span> <span class="o">+</span> <span class="n">Iy</span><span class="o">*</span><span class="n">Iy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">newv</span>
+        
+    <span class="n">uitter_vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">uitter</span><span class="p">)</span>
+    <span class="n">vitter_vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">vitter</span><span class="p">)</span>
+        
+    <span class="n">I</span> <span class="o">=</span> <span class="n">SD</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">J</span> <span class="o">=</span> <span class="n">SD</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="c1">#加权</span>
+    <span class="n">Ix</span> <span class="o">=</span> <span class="n">SD</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">Iy</span> <span class="o">=</span> <span class="n">SD</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">It</span> <span class="o">=</span> <span class="n">TD</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+    <span class="n">factor</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="p">(</span><span class="n">scales</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">I</span><span class="p">,</span><span class="n">J</span><span class="p">])</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">I</span><span class="p">,</span><span class="n">J</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">scales</span><span class="p">):</span>
+        <span class="n">factor</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="p">(</span><span class="n">scales</span><span class="o">-</span><span class="n">s</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">lambdaL</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">J</span><span class="o">//</span><span class="n">factor</span><span class="p">,</span><span class="n">I</span><span class="o">//</span><span class="n">factor</span><span class="p">])</span> <span class="o">*</span> <span class="n">ld</span>
+        
+        <span class="c1">#用金字塔算出的邻域结果做初始值</span>
+        <span class="n">u</span> <span class="o">=</span>  <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="p">[</span><span class="n">I</span><span class="o">//</span><span class="n">factor</span><span class="p">,</span><span class="n">J</span><span class="o">//</span><span class="n">factor</span><span class="p">],</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span>  <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">[</span><span class="n">I</span><span class="o">//</span><span class="n">factor</span><span class="p">,</span><span class="n">J</span><span class="o">//</span><span class="n">factor</span><span class="p">],</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">)</span>
+        <span class="n">Ixs</span> <span class="o">=</span>  <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">Ix</span><span class="p">,</span> <span class="p">[</span><span class="n">I</span><span class="o">//</span><span class="n">factor</span><span class="p">,</span><span class="n">J</span><span class="o">//</span><span class="n">factor</span><span class="p">],</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">)</span>
+        <span class="n">Iys</span> <span class="o">=</span>  <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">Iy</span><span class="p">,</span> <span class="p">[</span><span class="n">I</span><span class="o">//</span><span class="n">factor</span><span class="p">,</span><span class="n">J</span><span class="o">//</span><span class="n">factor</span><span class="p">],</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">)</span>
+        <span class="n">Its</span> <span class="o">=</span>  <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">It</span><span class="p">,</span> <span class="p">[</span><span class="n">I</span><span class="o">//</span><span class="n">factor</span><span class="p">,</span><span class="n">J</span><span class="o">//</span><span class="n">factor</span><span class="p">],</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">)</span>
+        <span class="n">continueFlag</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">maxIteration</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">continueFlag</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="c1">#print(u.shape,v.shape,Ixs.shape,Iys.shape,Its.shape,lambdaL.shape)</span>
+            <span class="n">u_new</span> <span class="o">=</span> <span class="n">uitter_vector</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">,</span><span class="n">Ixs</span><span class="p">,</span><span class="n">Iys</span><span class="p">,</span><span class="n">Its</span><span class="p">,</span><span class="n">lambdaL</span><span class="p">)</span>
+            <span class="n">v_new</span> <span class="o">=</span> <span class="n">vitter_vector</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">,</span><span class="n">Ixs</span><span class="p">,</span><span class="n">Iys</span><span class="p">,</span><span class="n">Its</span><span class="p">,</span><span class="n">lambdaL</span><span class="p">)</span>
+            <span class="n">erroru</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">u_new</span><span class="o">-</span><span class="n">u</span><span class="p">)</span>
+            <span class="n">errorv</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">v_new</span><span class="o">-</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="n">u_new</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">v_new</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">erroru</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">epsilon</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">errorv</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">epsilon</span><span class="p">:</span>
+                <span class="n">continueFlag</span> <span class="o">=</span> <span class="kc">True</span>
+    
+    <span class="n">flow</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">u</span><span class="p">),</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">v</span><span class="p">)],</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ifInterploted</span><span class="p">:</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">I</span><span class="p">,</span><span class="n">J</span><span class="o">*</span><span class="mi">2</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">I</span><span class="p">,</span><span class="n">J</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">flow</span></div>
+
+
+    
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2024, THU-CBICR。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

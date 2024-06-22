@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tianmoucv.isp.isp_basic &mdash; Tianmouc alpha 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=406e4f49"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../../genindex.html" />
+    <link rel="search" title="搜索" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Tianmouc
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">Outline</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tianmoucv/introduction.html">TianMouCV算法库</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Tianmouc</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">tianmoucv.isp.isp_basic</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>tianmoucv.isp.isp_basic 源代码</h1><div class="highlight"><pre>
+<span></span><span class="c1">#基础的一些isp操作与可视化函数，有些和算法的效果绑定</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Y. Lin&#39;</span>
+<span class="n">__authorEmail__</span> <span class="o">=</span> <span class="s1">&#39;532109881@qq.com&#39;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">convolve2d</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">.awb</span> <span class="kn">import</span> <span class="n">gray_world_awb</span><span class="p">,</span> <span class="n">AutoWhiteBalance</span>
+
+<span class="c1">##############################</span>
+<span class="c1">#1. 图像基本处理</span>
+<span class="c1">#2. 可视化</span>
+<span class="c1">##############################</span>
+<span class="n">raw_awb</span> <span class="o">=</span> <span class="n">AutoWhiteBalance</span><span class="p">()</span>
+
+<div class="viewcode-block" id="default_rgb_isp">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.default_rgb_isp">[文档]</a>
+<span class="k">def</span> <span class="nf">default_rgb_isp</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">blc</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">gamma</span> <span class="o">=</span> <span class="mf">0.9</span><span class="p">,</span> <span class="n">raw_input</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    默认的RGB RAW数据处理流程</span>
+<span class="sd">    </span>
+<span class="sd">    - 空洞填补</span>
+<span class="sd">    - 去马赛克</span>
+<span class="sd">    - 白平衡</span>
+<span class="sd">    - 自适应降噪</span>
+<span class="sd">    - 自动饱和度</span>
+<span class="sd">    - 自动曲线</span>
+<span class="sd">    - 自动归一化</span>
+
+<span class="sd">    注意: 速度非常慢，仅供参考</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1">#fill hole</span>
+    <span class="k">if</span> <span class="n">raw_input</span><span class="p">:</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span> <span class="o">-</span> <span class="n">blc</span>
+        <span class="n">raw</span><span class="p">[</span><span class="n">raw</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="n">lyncam_raw_comp</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+        <span class="n">image_demosaic_withoutisp</span> <span class="o">=</span> <span class="n">exp_bayer_to_rgb_conv</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+        
+        <span class="n">blc_avg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">blc</span><span class="p">)</span>
+        <span class="n">raw_after_awb</span> <span class="o">=</span> <span class="n">raw_awb</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;GW&#39;</span><span class="p">,</span><span class="n">blc_avg</span><span class="o">=</span><span class="n">blc_avg</span><span class="p">)</span>
+        <span class="n">raw_after_awb</span><span class="p">[</span><span class="n">raw_after_awb</span><span class="o">&gt;</span><span class="mi">1023</span><span class="p">]</span><span class="o">=</span><span class="mi">1023</span>
+        <span class="c1">#adjust gamma</span>
+        <span class="n">raw_gamma</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw_after_awb</span><span class="o">/</span><span class="mf">1024.0</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">gamma</span><span class="p">)</span><span class="o">*</span><span class="mf">1024.0</span>
+
+        <span class="c1">#demosacing</span>
+        <span class="n">image_demosaic</span> <span class="o">=</span> <span class="n">exp_bayer_to_rgb_conv</span><span class="p">(</span><span class="n">raw_gamma</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">image_demosaic_withoutisp</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw</span><span class="o">/</span><span class="mf">1024.0</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">gamma</span><span class="p">)</span><span class="o">*</span><span class="mf">1024.0</span>
+        <span class="n">image_demosaic</span> <span class="o">=</span> <span class="n">gray_world_awb</span><span class="p">(</span><span class="n">image_demosaic_withoutisp</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="n">HSB</span><span class="o">=</span><span class="mi">1023</span><span class="p">)</span>
+    
+    <span class="c1">#adjust_saturation</span>
+    <span class="c1">#saturation_factor = (96,128)</span>
+    <span class="c1">#image = adjust_saturation(image,saturation_factor)</span>
+    <span class="c1">#adjust_curve</span>
+    <span class="c1">#curve_factor = 0.02</span>
+    <span class="c1">#image = adjust_curve(image,curve_factor)</span>
+
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image_demosaic</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">image</span><span class="o">/</span><span class="mf">1024.0</span><span class="p">,</span><span class="n">image_demosaic_withoutisp</span><span class="o">/</span><span class="mf">1024.0</span></div>
+
+            
+
+<span class="c1"># ===============================================================</span>
+<span class="c1"># ToneMapping</span>
+<span class="c1"># ===============================================================</span>
+<div class="viewcode-block" id="ACESToneMapping">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.ACESToneMapping">[文档]</a>
+<span class="k">def</span> <span class="nf">ACESToneMapping</span><span class="p">(</span><span class="n">color</span><span class="p">,</span> <span class="n">adapted_lum</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    https://zhuanlan.zhihu.com/p/21983679</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="mf">2.51</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="mf">0.03</span>
+    <span class="n">C</span> <span class="o">=</span> <span class="mf">2.43</span>
+    <span class="n">D</span> <span class="o">=</span> <span class="mf">0.59</span>
+    <span class="n">E</span> <span class="o">=</span> <span class="mf">0.14</span>
+    <span class="n">color</span> <span class="o">*=</span> <span class="n">adapted_lum</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">color</span> <span class="o">*</span> <span class="p">(</span><span class="n">A</span> <span class="o">*</span> <span class="n">color</span> <span class="o">+</span> <span class="n">B</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">color</span> <span class="o">*</span> <span class="p">(</span><span class="n">C</span> <span class="o">*</span> <span class="n">color</span> <span class="o">+</span> <span class="n">D</span><span class="p">)</span> <span class="o">+</span> <span class="n">E</span><span class="p">)</span></div>
+
+
+
+
+<span class="c1"># ===============================================================</span>
+<span class="c1"># adjust_curve</span>
+<span class="c1"># ===============================================================</span>
+<div class="viewcode-block" id="Scurve">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.Scurve">[文档]</a>
+<span class="k">def</span> <span class="nf">Scurve</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span><span class="n">curve_factor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    曲线调整</span>
+<span class="sd">    :param img: cv2.imread读取的图片数据</span>
+<span class="sd">    :curve_factor: 增加对比度，值越大对比度越大</span>
+<span class="sd">    :return: 返回的白平衡结果图片数据</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">256</span><span class="p">))</span>  <span class="c1"># 创建0到255的数组</span>
+    <span class="n">s_curve</span> <span class="o">=</span> <span class="mi">255</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">curve_factor</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="mi">128</span><span class="p">)))</span>  <span class="c1"># 创建S形曲线</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">LUT</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">s_curve</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">Y</span></div>
+
+    
+<div class="viewcode-block" id="adjust_curve">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.adjust_curve">[文档]</a>
+<span class="k">def</span> <span class="nf">adjust_curve</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">curve_factor</span> <span class="o">=</span> <span class="mf">0.02</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    曲线调整</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+   <span class="c1"># 将RGB图像转换为YCrCb颜色空间</span>
+    <span class="n">yuv_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2YCrCb</span><span class="p">)</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">yuv_image</span><span class="p">[:,:,</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">yuv_image</span><span class="p">[:,:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">Scurve</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span><span class="n">curve_factor</span><span class="p">)</span> <span class="c1">#fuji_curve(Y)</span>
+    <span class="c1"># 将YCrCb图像转换回RGB颜色空间</span>
+    <span class="c1">#print(&#39;curve:&#39;,np.max(yuv_image))</span>
+    <span class="n">yuv_image</span><span class="p">[</span><span class="n">yuv_image</span><span class="o">&gt;</span><span class="mf">255.0</span><span class="p">]</span><span class="o">=</span><span class="mf">255.0</span>
+    <span class="n">output_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">yuv_image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_YCrCb2BGR</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">output_image</span></div>
+
+
+
+
+<div class="viewcode-block" id="adjust_saturation">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.adjust_saturation">[文档]</a>
+<span class="k">def</span> <span class="nf">adjust_saturation</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">saturation_factor</span> <span class="o">=</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span><span class="mi">256</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    </span>
+<span class="sd">    饱和度调整</span>
+<span class="sd">     </span>
+<span class="sd">    :param img: cv2.imread读取的图片数据</span>
+<span class="sd">    :saturation_factor: 增加饱和度，saturation_factor越大饱和度越大</span>
+<span class="sd">    :return: 返回的饱和度结果图片数据</span>
+<span class="sd">    </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">target</span><span class="p">,</span><span class="n">max_value</span> <span class="o">=</span> <span class="n">saturation_factor</span>
+
+    <span class="c1"># 将图像转换为HSV颜色空间</span>
+    <span class="n">hsv_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2HSV</span><span class="p">)</span>
+    <span class="n">hsv_image</span> <span class="o">=</span> <span class="n">hsv_image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="c1"># 调整饱和度（增加饱和度可以使用更大的值，减少饱和度可以使用更小的值）</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">hsv_image</span><span class="p">[:,:,</span><span class="mi">1</span><span class="p">]</span>
+    
+    <span class="n">factor</span> <span class="o">=</span> <span class="n">target</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1e-8</span><span class="o">+</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">V</span><span class="p">))</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">V</span> <span class="o">*</span> <span class="n">factor</span>
+
+    <span class="n">V</span> <span class="o">=</span> <span class="n">max_value</span> <span class="o">*</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">V</span><span class="o">/</span><span class="n">max_value</span><span class="p">)</span> <span class="p">)</span>
+
+    <span class="n">hsv_image</span><span class="p">[:,:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">V</span>
+    
+    <span class="c1">#print(&#39;st:&#39;,np.max(hsv_image))</span>
+    <span class="n">hsv_image</span> <span class="o">=</span> <span class="n">hsv_image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="n">result_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">hsv_image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_HSV2BGR</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result_image</span></div>
+
+
+
+<span class="c1"># ===============================================================</span>
+<span class="c1"># Tianmouc hole fill</span>
+<span class="c1"># ===============================================================</span>
+<div class="viewcode-block" id="lyncam_raw_comp">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.lyncam_raw_comp">[文档]</a>
+<span class="k">def</span> <span class="nf">lyncam_raw_comp</span><span class="p">(</span><span class="n">raw</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Tianmouc Bayer 填充</span>
+
+<span class="sd">    Author: Taoyi Wang</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1</span>
+    <span class="c1">#raw_res = np.zeros((height, width), dtype=np.int16)</span>
+    <span class="c1">#raw_res = cv2.resize(raw, (width, height),interpolation=cv2.INTER_LINEAR)</span>
+    <span class="n">raw_hollow</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+    <span class="n">test</span> <span class="o">=</span>   <span class="n">raw</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">::</span><span class="mi">4</span><span class="p">],</span> <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">2</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="mi">2</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">::</span><span class="mi">4</span><span class="p">],</span> <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">2</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="mi">2</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">::</span><span class="mi">4</span><span class="p">],</span> <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">3</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="mi">3</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">::</span><span class="mi">4</span><span class="p">],</span> <span class="n">raw_hollow</span><span class="p">[</span><span class="mi">3</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="mi">3</span><span class="p">::</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">comp_kernal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.25</span>
+    <span class="n">raw_comp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">raw_hollow</span><span class="p">)</span>
+    <span class="n">cv2</span><span class="o">.</span><span class="n">filter2D</span><span class="p">(</span><span class="n">raw_hollow</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">comp_kernal</span><span class="p">,</span> <span class="n">raw_comp</span><span class="p">,</span> <span class="n">anchor</span><span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">borderType</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_ISOLATED</span><span class="p">)</span>
+    <span class="n">raw_comp</span> <span class="o">=</span> <span class="n">raw_comp</span> <span class="o">+</span> <span class="n">raw_hollow</span><span class="p">;</span>
+    <span class="n">raw_comp</span> <span class="o">=</span> <span class="n">raw_comp</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">raw_comp</span></div>
+
+
+<span class="c1"># ===============================================================</span>
+<span class="c1"># Tianmouc Bayer 去马赛克</span>
+<span class="c1"># ===============================================================</span>
+<div class="viewcode-block" id="exp_bayer_to_rgb_conv">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.exp_bayer_to_rgb_conv">[文档]</a>
+<span class="k">def</span> <span class="nf">exp_bayer_to_rgb_conv</span><span class="p">(</span><span class="n">bayer_image</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    # Define convolution kernels for each color channel</span>
+<span class="sd">    # These kernels are designed to average the surrounding pixels</span>
+<span class="sd">    # Kernel for Red and Blue channels (they are at the corners of the Bayer pattern)</span>
+<span class="sd">    lyh testing        </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">bayer_image</span> <span class="o">=</span> <span class="n">bayer_image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="c1"># Masks for each color in the BGGR pattern</span>
+    <span class="n">mask_b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bayer_image</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">mask_g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bayer_image</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">mask_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bayer_image</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">mask_b</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Blue pixels</span>
+    <span class="n">mask_g</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Green pixels on blue rows</span>
+    <span class="n">mask_g</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Green pixels on red rows</span>
+    <span class="n">mask_r</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Red pixels</span>
+    <span class="n">kernel_rb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                          <span class="p">[</span><span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span>    <span class="mi">36</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">],</span>
+                          <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">36</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">36</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+                          <span class="p">[</span><span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span>    <span class="mi">36</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">],</span>
+                          <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="o">/</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span> <span class="o">/</span> <span class="mi">24</span>
+    <span class="c1"># Kernel for Green channel (it&#39;s in the middle of the Bayer pattern)</span>
+    <span class="n">kernel_g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                         <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                         <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span> <span class="o">/</span> <span class="mf">4.0</span>
+    <span class="c1"># Extract the height and width of the Bayer image</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">bayer_image</span><span class="o">.</span><span class="n">shape</span>
+    <span class="c1"># Initialize empty channels for R, G, B</span>
+    <span class="n">red_channel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">green_channel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">blue_channel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="c1"># Apply convolution to simulate demosaicing</span>
+    <span class="c1"># Note: We are using the &#39;same&#39; border mode to ensure the output image has the same size</span>
+    <span class="n">blue_channel</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">filter2D</span><span class="p">(</span><span class="n">bayer_image</span> <span class="o">*</span> <span class="n">mask_b</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_rb</span><span class="p">)</span>
+    <span class="n">green_channel</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">filter2D</span><span class="p">(</span><span class="n">bayer_image</span> <span class="o">*</span> <span class="n">mask_g</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_g</span><span class="p">)</span>
+    <span class="n">red_channel</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">filter2D</span><span class="p">(</span><span class="n">bayer_image</span> <span class="o">*</span> <span class="n">mask_r</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_rb</span><span class="p">)</span>
+    <span class="c1"># Stack the R, G, B channels to form an RGB image</span>
+    <span class="n">rgb_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">merge</span><span class="p">((</span><span class="n">red_channel</span><span class="p">,</span> <span class="n">green_channel</span><span class="p">,</span> <span class="n">blue_channel</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">rgb_image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="demosaicing_npy">
+<a class="viewcode-back" href="../../../tianmoucv/introduction.html#tianmoucv.isp.isp_basic.demosaicing_npy">[文档]</a>
+<span class="k">def</span> <span class="nf">demosaicing_npy</span><span class="p">(</span><span class="n">bayer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bayer_pattern</span><span class="o">=</span><span class="s1">&#39;bggr&#39;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">0</span> <span class="p">,</span><span class="n">bitdepth</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Call this function to load raw bayer image</span>
+<span class="sd">    :param bayer: input bayer image</span>
+<span class="sd">    :param level: demosaicing level. 0: bilinear linear; 1: gradient</span>
+<span class="sd">    :param bayer_type: bayer_type: : 0--RGrRGr...GbBGbB, 1--GrRGrR...BGbBGb...</span>
+<span class="sd">    Author: Taoyi Wang</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">bayer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">bayer</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="n">max_v</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">bitdepth</span><span class="p">)</span> <span class="c1">#- 1#bayer.max()</span>
+    <span class="n">bayer_cal</span> <span class="o">=</span> <span class="n">bayer</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="c1"># 1st step: standard bilinear demosaicing process on bayer-patterned image</span>
+    <span class="n">conv_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">4</span>  <span class="c1"># plus shaped interpolation</span>
+    <span class="n">conv_c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">4</span>  <span class="c1"># cross shaped interpolation</span>
+    <span class="n">conv_ud</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span>  <span class="c1"># up and down interpolation</span>
+    <span class="n">conv_lr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span>  <span class="c1"># left and right interpolation</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_p</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_c</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+    <span class="n">ud</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_ud</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+    <span class="n">lr</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_lr</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+    <span class="c1"># calculate gradient</span>
+    <span class="c1"># center gradient v1 for plus shaped interpolation</span>
+    <span class="n">conv_grad_c1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>  <span class="mi">4</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>  <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                <span class="p">[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">]])</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">8</span>
+    <span class="c1"># center gradient v2 for cross shaped interpolation</span>
+    <span class="n">conv_grad_c2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="o">-</span><span class="mi">3</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>      <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>  <span class="mi">6</span><span class="p">,</span>      <span class="mi">0</span><span class="p">,</span>  <span class="o">-</span><span class="mi">3</span><span class="o">/</span><span class="mi">2</span><span class="p">],</span>
+                                <span class="p">[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>      <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">]])</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">8</span>
+    <span class="c1"># horizontal gradient for left and right interpolation</span>
+    <span class="n">conv_grad_h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                            <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">8</span>
+    <span class="c1"># vertical gradient for up and down interpolation</span>
+    <span class="n">conv_grad_v</span> <span class="o">=</span> <span class="n">conv_grad_h</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">grad_c1</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_grad_c1</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+    <span class="n">grad_c2</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_grad_c2</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+    <span class="n">grad_h</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_grad_h</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+    <span class="n">grad_v</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">,</span> <span class="n">conv_grad_v</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="s1">&#39;symm&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">)</span>
+
+    <span class="n">red</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39; red[0::2, 0::2] = bayer_cal[0::2, 0::2]</span>
+<span class="sd">    red[0::2, 1::2] = lr[0::2, 1::2]</span>
+<span class="sd">    red[1::2, 0::2] = ud[1::2, 0::2]</span>
+<span class="sd">    red[1::2, 1::2] = c[1::2, 1::2]&#39;&#39;&#39;</span>
+
+    <span class="n">green</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;green[0::2, 0::2] = p[0::2, 0::2]</span>
+<span class="sd">    green[0::2, 1::2] = bayer_cal[0::2, 1::2]</span>
+<span class="sd">    green[1::2, 0::2] = bayer_cal[1::2, 0::2]</span>
+<span class="sd">    green[1::2, 1::2] = p[1::2, 1::2]&#39;&#39;&#39;</span>
+
+    <span class="n">blue</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bayer_cal</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;blue[0::2, 0::2] = c[0::2, 0::2]</span>
+<span class="sd">    blue[0::2, 1::2] = ud[0::2, 1::2]</span>
+<span class="sd">    blue[1::2, 0::2] = lr[1::2, 0::2]</span>
+<span class="sd">    blue[1::2, 1::2] = bayer_cal[1::2, 1::2]&#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="n">bayer_pattern</span> <span class="o">==</span> <span class="s1">&#39;rggb&#39;</span><span class="p">:</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lr</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">ud</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">ud</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lr</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="c1"># add gradient compensation</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_h</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_v</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c2</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c1</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c1</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c2</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_v</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_h</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">bayer_pattern</span> <span class="o">==</span> <span class="s1">&#39;grbg&#39;</span><span class="p">:</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lr</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">ud</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">ud</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>   
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lr</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="c1"># add gradient compensation</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_h</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_v</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c2</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c1</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c1</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_v</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c2</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_h</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">bayer_pattern</span> <span class="o">==</span> <span class="s1">&#39;bggr&#39;</span><span class="p">:</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lr</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">ud</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">ud</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lr</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bayer</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="c1"># add gradient compensation</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_h</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_v</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">blue</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c2</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">green</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c1</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">green</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c1</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_c2</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_v</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">red</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">grad_h</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">rgb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">red</span><span class="p">,</span> <span class="n">green</span><span class="p">,</span> <span class="n">blue</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">rgb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">rgb</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">max_v</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rgb</span></div>
+
+
+
+<span class="c1"># ===============================================================</span>
+<span class="c1"># 可视化差分数据</span>
+<span class="c1"># bg_color:white/black</span>
+<span class="c1"># ===============================================================</span>
+<span class="k">def</span> <span class="nf">vizDiff</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span><span class="n">thresh</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">bg_color</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">):</span>
+
+    <span class="k">if</span> <span class="n">bg_color</span> <span class="o">==</span> <span class="s1">&#39;white&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">vizDiff_WBG</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span><span class="n">thresh</span><span class="o">=</span><span class="n">thresh</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">bg_color</span> <span class="o">==</span> <span class="s1">&#39;black&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">vizDiff_BBG</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span><span class="n">thresh</span><span class="o">=</span><span class="n">thresh</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;not implemented,bg_color:white/black&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">rgb_diff</span>
+    
+<span class="c1"># ===============================================================</span>
+<span class="c1"># 可视化差分数据(白底)</span>
+<span class="c1"># ===============================================================</span>
+<span class="k">def</span> <span class="nf">vizDiff_WBG</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span><span class="n">thresh</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="n">rgb_diff</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">h</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diff</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+        <span class="n">w</span><span class="p">,</span><span class="n">h</span> <span class="o">=</span> <span class="n">diff</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">w</span><span class="p">,</span><span class="n">h</span> <span class="o">=</span> <span class="n">diff</span><span class="o">.</span><span class="n">shape</span>
+        
+    <span class="n">rgb_diff</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="n">h</span><span class="p">])</span> <span class="o">*</span> <span class="mi">255</span>
+    <span class="n">diff</span><span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span><span class="o">&lt;</span><span class="n">thresh</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[</span><span class="n">diff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[</span><span class="n">diff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">diff</span><span class="p">[</span><span class="n">diff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">diff</span><span class="p">[</span><span class="n">diff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">rgb_diff</span>
+
+
+<span class="c1"># ===============================================================</span>
+<span class="c1"># 可视化差分数据(黑底)</span>
+<span class="c1"># ===============================================================</span>
+<span class="k">def</span> <span class="nf">vizDiff_BBG</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span><span class="n">thresh</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="n">rgb_diff</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">h</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diff</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+        <span class="n">w</span><span class="p">,</span><span class="n">h</span> <span class="o">=</span> <span class="n">diff</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">w</span><span class="p">,</span><span class="n">h</span> <span class="o">=</span> <span class="n">diff</span><span class="o">.</span><span class="n">shape</span>
+        
+    <span class="n">rgb_diff</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="n">h</span><span class="p">])</span>
+    <span class="n">diff</span><span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span><span class="o">&lt;</span><span class="n">thresh</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[</span><span class="n">diff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rgb_diff</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="o">...</span><span class="p">][</span><span class="n">diff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">diff</span><span class="p">[</span><span class="n">diff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span>
+    
+    <span class="k">return</span> <span class="n">rgb_diff</span>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2024, THU-CBICR。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

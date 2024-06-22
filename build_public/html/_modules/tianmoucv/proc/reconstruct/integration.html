@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tianmoucv.proc.reconstruct.integration &mdash; Tianmouc alpha 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=406e4f49"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../../../genindex.html" />
+    <link rel="search" title="搜索" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Tianmouc
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">Outline</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tianmoucv/introduction.html">TianMouCV算法库</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Tianmouc</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">tianmoucv.proc.reconstruct.integration</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>tianmoucv.proc.reconstruct.integration 源代码</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">.basic</span> <span class="kn">import</span> <span class="n">laplacian_blending</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.isp</span> <span class="kn">import</span> <span class="n">SD2XY</span><span class="p">,</span><span class="n">upsampleTSD</span>
+
+<div class="viewcode-block" id="TD_integration">
+<a class="viewcode-back" href="../../../../tianmoucv/introduction.html#tianmoucv.proc.reconstruct.integration.TD_integration">[文档]</a>
+<span class="k">def</span> <span class="nf">TD_integration</span><span class="p">(</span><span class="n">tsdiff</span><span class="p">,</span><span class="n">F0</span><span class="p">,</span><span class="n">F1</span><span class="p">,</span><span class="n">t</span><span class="p">,</span> <span class="n">TD_BG_NOISE</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">threshGate</span><span class="o">=</span><span class="mi">4</span><span class="o">/</span><span class="mi">255</span><span class="p">,</span> <span class="n">dig_scaling</span><span class="o">=</span> <span class="mf">1.5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    AOP+COP合成灰度</span>
+<span class="sd">    </span>
+<span class="sd">    1. 校正TD的正向和负向差分的不一致性</span>
+<span class="sd">    </span>
+<span class="sd">    2. 计算AOP到COP的线性缩放系数</span>
+<span class="sd">    </span>
+<span class="sd">    3. laplacian_blending</span>
+<span class="sd">    </span>
+<span class="sd">    4. 双向TD积累+SD灰度合成最终结果</span>
+<span class="sd">    </span>
+<span class="sd">    parameter:</span>
+<span class="sd">        :param F0: [h,w,3],torch.Tensor</span>
+<span class="sd">        :param F0: [h,w,3],torch.Tensor</span>
+<span class="sd">        :param tsdiff: [3,T,h,w],torch.Tensor, 默认decoded结果的堆积</span>
+<span class="sd">        :param TDnoise: 噪声矩阵 [h,w], torch.Tensor</span>
+<span class="sd">        :param threshGate=4/255: 积累时的噪声阈值</span>
+<span class="sd">        :param t: int</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">gray0</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">F0</span><span class="p">,</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">gray1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">F1</span><span class="p">,</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">TD_COP</span> <span class="o">=</span> <span class="n">gray1</span><span class="o">-</span><span class="n">gray0</span>
+    
+    <span class="c1">#adjust TD bias for tianmouc</span>
+    <span class="n">TD</span> <span class="o">=</span> <span class="n">tsdiff</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">:,</span><span class="o">...</span><span class="p">]</span>     
+
+    <span class="n">TD</span> <span class="o">-=</span> <span class="n">TD_BG_NOISE</span>
+    <span class="n">TD</span><span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">TD</span><span class="p">)</span><span class="o">&lt;</span><span class="n">threshGate</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span>
+    
+    <span class="n">possum</span>  <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">TD</span><span class="p">[</span><span class="n">TD</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">negsum</span>  <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">TD</span><span class="p">[</span><span class="n">TD</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">bias</span> <span class="o">=</span> <span class="p">(</span><span class="n">negsum</span><span class="o">-</span><span class="n">possum</span><span class="p">)</span><span class="o">/</span><span class="n">TD</span><span class="p">[</span><span class="n">TD</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">TD</span><span class="p">[</span><span class="n">TD</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">bias</span>
+
+    <span class="n">AOPDiff</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">TD</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span><span class="o">...</span><span class="p">],</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">AOPDiff</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">AOPDiff</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="n">TD_COP</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">AOP_COP_scale_neg</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">TD_COP</span><span class="p">[</span><span class="n">TD_COP</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">AOPDiff</span><span class="p">[</span><span class="n">AOPDiff</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">])</span> 
+    <span class="n">AOP_COP_scale_pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">TD_COP</span><span class="p">[</span><span class="n">TD_COP</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">AOPDiff</span><span class="p">[</span><span class="n">AOPDiff</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">])</span> 
+
+    <span class="n">TD</span><span class="p">[</span><span class="n">TD</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">*=</span> <span class="n">AOP_COP_scale_neg</span> <span class="o">*</span> <span class="n">dig_scaling</span>
+    <span class="n">TD</span><span class="p">[</span><span class="n">TD</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">*=</span> <span class="n">AOP_COP_scale_pos</span>  <span class="o">*</span> <span class="n">dig_scaling</span>
+
+    <span class="n">forward_TD</span> <span class="o">=</span>  <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">TD</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">t</span><span class="p">,</span><span class="o">...</span><span class="p">],</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">backward_TD</span> <span class="o">=</span>  <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">TD</span><span class="p">[</span><span class="n">t</span><span class="p">:,</span><span class="o">...</span><span class="p">],</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+
+    <span class="n">forward_TD</span>  <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">forward_TD</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">320</span><span class="p">,</span><span class="mi">640</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">backward_TD</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">backward_TD</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">320</span><span class="p">,</span><span class="mi">640</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    
+    <span class="n">hdr</span> <span class="o">=</span>  <span class="p">(</span><span class="n">gray0</span><span class="o">+</span><span class="n">forward_TD</span> <span class="o">+</span> <span class="n">gray1</span> <span class="o">-</span> <span class="n">backward_TD</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+
+    <span class="c1">#hdr[hdr&lt;0]=0</span>
+    <span class="c1">#hdr[hdr&gt;1]=1</span>
+    
+    <span class="k">return</span> <span class="n">hdr</span></div>
+
+
+
+<div class="viewcode-block" id="SD_integration">
+<a class="viewcode-back" href="../../../../tianmoucv/introduction.html#tianmoucv.proc.reconstruct.integration.SD_integration">[文档]</a>
+<span class="k">def</span> <span class="nf">SD_integration</span><span class="p">(</span><span class="n">SDx</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">SDy</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>  <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    SD直接积分累加重建，简单可视化用</span>
+<span class="sd">    use mapped SDx and SDy to conduct direct integration</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">canvas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">SDx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">SDx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">grayy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">SDy</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">goody_first</span> <span class="o">=</span> <span class="n">grayy</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">canvas</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">goody_first</span>
+    <span class="n">canvas</span><span class="p">[:,</span><span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="n">SDx</span>
+    <span class="n">gray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">canvas</span><span class="p">[:,:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gray</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2024, THU-CBICR。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

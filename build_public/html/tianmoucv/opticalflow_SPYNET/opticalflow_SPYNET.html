@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>基于SpyNet的光流网络 &mdash; Tianmouc alpha 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=406e4f49"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" />
+    <link rel="next" title="基于AOP的灰度重建" href="../reconstruct_gray/reconstruct_gray.html" />
+    <link rel="prev" title="基于LK方法的实时光流计算" href="../opticalflow_LK_method/opticalflow_LK_method.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Tianmouc
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">Outline</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../introduction.html">TianMouCV算法库</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../introduction.html#readme">README</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction.html#id1">数据解码说明</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction.html#index-basic">说明文档索引</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction.html#tianmocu-data-reader">Tianmocu原始数据读取(data reader)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction.html#isp">ISP处理方法</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction.html#tianmocu-python-usb">Tianmocu python相机接口(仅支持usb)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction.html#proc">算法库(proc)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../introduction.html#index-examples">调用示例</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../feature_matching/feature_matching.html">Haris角点和SIFT特征描述符</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../feature_tracking_tested/feature_tracking_tested.html">基于SD的特征追踪</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../opticalflow_HS_method/opticalflow_HS_method.html">基于HS方法的实时光流计算</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../opticalflow_LK_method/opticalflow_LK_method.html">基于LK方法的实时光流计算</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">基于SpyNet的光流网络</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#aop">这个示例展示一个在AOP上运行的，推理快速的端到端光流网络</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1">必要的库</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">准备数据</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3">光流网络初始化</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4">光流计算</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">导出视频</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../reconstruct_gray/reconstruct_gray.html">基于AOP的灰度重建</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reconstruct_hdr_Laplacian/reconstruct_hdr_Laplacian.html">HDR单帧合成</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reconstruct_tiny_unet/reconstruct_tiny_unet.html">轻量化视频重建</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Tianmouc</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../introduction.html">TianMouCV算法库</a></li>
+      <li class="breadcrumb-item active">基于SpyNet的光流网络</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tianmoucv/opticalflow_SPYNET/opticalflow_SPYNET.rst.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="spynet">
+<h1>基于SpyNet的光流网络<a class="headerlink" href="#spynet" title="Link to this heading"></a></h1>
+<section id="aop">
+<h2>这个示例展示一个在AOP上运行的，推理快速的端到端光流网络<a class="headerlink" href="#aop" title="Link to this heading"></a></h2>
+<p>调用接口： - tianmoucv.proc.opticalflow.TianmoucOF_SpyNet</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+</pre></div>
+</div>
+</section>
+<section id="id1">
+<h2>必要的库<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">autoreload</span>
+<span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span><span class="nn">os</span><span class="o">,</span> <span class="nn">math</span><span class="o">,</span><span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.data</span> <span class="kn">import</span> <span class="n">TianmoucDataReader</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>TianMouCV™ 0.3.5.4, via Y. Lin  update new nn for reconstruction
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h2>准备数据<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">train</span><span class="o">=</span><span class="s1">&#39;/data/lyh/tianmoucData/tianmoucReconDataset/train/&#39;</span>
+<span class="n">dirlist</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">train</span><span class="p">)</span>
+<span class="n">traindata</span> <span class="o">=</span> <span class="p">[</span><span class="n">train</span> <span class="o">+</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">dirlist</span><span class="p">]</span>
+
+<span class="n">val</span><span class="o">=</span><span class="s1">&#39;/data/lyh/tianmoucData/tianmoucReconDataset/test/&#39;</span>
+<span class="n">vallist</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+<span class="n">valdata</span> <span class="o">=</span> <span class="p">[</span><span class="n">val</span> <span class="o">+</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">vallist</span><span class="p">]</span>
+<span class="n">key_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;---------------------------------------------------&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">sampleset</span> <span class="ow">in</span> <span class="n">traindata</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;----&gt;&#39;</span><span class="p">,</span><span class="n">sampleset</span><span class="p">,</span><span class="s1">&#39;有：&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">sampleset</span><span class="p">)),</span><span class="s1">&#39;个样本&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">sampleset</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">,</span><span class="n">end</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="n">key_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;---------------------------------------------------&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">sampleset</span> <span class="ow">in</span> <span class="n">valdata</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;----&gt;&#39;</span><span class="p">,</span><span class="n">sampleset</span><span class="p">,</span><span class="s1">&#39;有：&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">sampleset</span><span class="p">)),</span><span class="s1">&#39;个样本&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">sampleset</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">,</span><span class="n">end</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="n">key_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+<span class="n">all_data</span> <span class="o">=</span> <span class="n">valdata</span> <span class="o">+</span> <span class="n">traindata</span>
+<span class="n">key_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;underbridge_hdr_4&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>---------------------------------------------------
+----&gt; /data/lyh/tianmoucData/tianmoucReconDataset/train/normal 有： 67 个样本
+outdoor_cross_8 train_cross2 traffic5 indoor_office_2 train_indoor_dog4 outdoor_cross_5 indoor_office_6 train_running_man_5 indoor_office_1 train_exam_fan2 indoor_office_3 people1 train_exam_fan5 indoor_office_4 indoor_slefie_2 outdoor_cross_9 outdoor_bridge_1 outdoor_cross_4 outdoor_cross_1 outdoor_4huan traffic15 outdoor_cross_12 outdoor_bridge_2 traffic9 traffic2 traffic_nohdr_16 traffic11 train_exam_fan1 train_indoor_dog1 train_cross3 train_driving5 traffic7 traffic_nohdr_15 train_driving14 train_driving9 outdoor_cross_7 train_driving4 traffic10 train_running_man_6 train_exam_fan3 train_driving6 train_cross4 train_driving3 outdoor_cross_3 train_driving11 traffic14 outdoor_bz_1 outdoor_hutong_1 indoor_slefie_1 indoor_keyboard1 train_man_play_ball1 train_driving8 traffic3 train_driving7 outdoor_cross_11 train_exam_full4 train_running_man_7 people10 traffic6 train_driving13 traffic13 traffic_nohdr_17 train_driving10 train_exam_full2 train_indoor_dog2 traffic1 train_exam_full1 ----&gt; /data/lyh/tianmoucData/tianmoucReconDataset/train/extreme 有： 51 个样本
+flicker_12 underbridge_hdr_4 hdr_people9 train_exam_flicker3 underbridge_hdr_2 hdr_traffic35 hdr_people15 flicker_3 hdr_people2 train_tunnel3_hdr_ae hdr_traffic18 shake2 indoor_crazy_shake flicker_1 flicker_8 hdr_traffic20 underbridge_hdr_1 hdr_traffic30 train_exam_flicker2 hdr_traffic19 flicker_17 flicker_6 shake5 hdr_traffic23 train_exam_flicker1 train_hdr_human hdr_people5 hdr_people3 flicker_0 hdr_people11 train_tunnel6_hdr_ae flicker_4 flicker_9 flicker_11 flicker_15 hdr_people7 shake4 hdr_traffic26 train_tunnel4_hdr_ae hdr_traffic25 hdr_traffic29 train_tunnel1_hdr_blur shake1 train_driving2 hdr_traffic22 train_exam_fan_QRcode_1 hdr_people6 flicker_14 hdr_traffic34 hdr_people14 train_tunnel5_hdr_ae ---------------------------------------------------
+----&gt; /data/lyh/tianmoucData/tianmoucReconDataset/test/normal 有： 24 个样本
+test_tunnel2 test_man_play_ball3 test_exam_fan4 test_driving24 test_driving3 test_driving20 indoor_office_5 outdoor_cross_10 test_running_man_8 test_cross3 outdoor_cross_13 outdoor_4huan_2 test_exam_full3 test_driving4 traffic4 test_driving12 test_driving16 outdoor_cross_6 traffic8 test_driving8 traffic12 outdoor_bridge_3 test_running_man_4 indoor_keyboard2 ----&gt; /data/lyh/tianmoucData/tianmoucReconDataset/test/extreme 有： 30 个样本
+shake3 test_tunnel7_hdr_ae hdr_traffic36 test_exam_fan_QRcode_2 flicker_16 hdr_traffic21 hdr_traffic32 test_indoor_dog3 hdr_traffic24 train_exam_flicker5 hdr_people13 test_tunnel8_hdr_ae_double hdr_people8 flicker_13 hdr_traffic33 hdr_people4 test_exam_fan_QRcode_3 hdr_traffic31 indoor_selfie_shake_3 flicker_7 hdr_people16 flicker_10 flicker_2 hdr_people12 test_driving_night_light1 test_hdr_human2 underbridge_hdr_3 flicker_18 flicker_5 shake6
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h2>光流网络初始化<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">autoreload</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.proc.opticalflow</span> <span class="kn">import</span> <span class="n">TianmoucOF_SpyNet</span>
+
+<span class="n">local_rank</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cuda:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">local_rank</span><span class="p">))</span>
+<span class="n">OFNet</span> <span class="o">=</span> <span class="n">TianmoucOF_SpyNet</span><span class="p">((</span><span class="mi">320</span><span class="p">,</span><span class="mi">640</span><span class="p">),</span><span class="n">_optim</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">OFNet</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<span class="n">OFNet</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>loading..: https://cloud.tsinghua.edu.cn/f/84ac6e32060443e2975d/?dl=1
+load finished
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">TianmoucOF_SpyNet</span><span class="p">(</span>
+  <span class="p">(</span><span class="n">flowComp</span><span class="p">):</span> <span class="n">SpyNet</span><span class="p">(</span>
+    <span class="p">(</span><span class="n">netBasic</span><span class="p">):</span> <span class="n">ModuleList</span><span class="p">(</span>
+      <span class="p">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">5</span><span class="p">):</span> <span class="mi">6</span> <span class="n">x</span> <span class="n">Basic_larger_kernel</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">netBasic</span><span class="p">):</span> <span class="n">Sequential</span><span class="p">(</span>
+          <span class="p">(</span><span class="mi">0</span><span class="p">):</span> <span class="n">Conv2d</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+          <span class="p">(</span><span class="mi">1</span><span class="p">):</span> <span class="n">ReLU</span><span class="p">()</span>
+          <span class="p">(</span><span class="mi">2</span><span class="p">):</span> <span class="n">Conv2d</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+          <span class="p">(</span><span class="mi">3</span><span class="p">):</span> <span class="n">ReLU</span><span class="p">()</span>
+          <span class="p">(</span><span class="mi">4</span><span class="p">):</span> <span class="n">Conv2d</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+          <span class="p">(</span><span class="mi">5</span><span class="p">):</span> <span class="n">ReLU</span><span class="p">()</span>
+          <span class="p">(</span><span class="mi">6</span><span class="p">):</span> <span class="n">Conv2d</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+          <span class="p">(</span><span class="mi">7</span><span class="p">):</span> <span class="n">ReLU</span><span class="p">()</span>
+          <span class="p">(</span><span class="mi">8</span><span class="p">):</span> <span class="n">Conv2d</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="p">)</span>
+      <span class="p">)</span>
+    <span class="p">)</span>
+  <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h2>光流计算<a class="headerlink" href="#id4" title="Link to this heading"></a></h2>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">autoreload</span>
+<span class="kn">from</span> <span class="nn">IPython.display</span> <span class="kn">import</span> <span class="n">clear_output</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.isp</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.proc.opticalflow</span> <span class="kn">import</span> <span class="n">interpolate_image</span><span class="p">,</span><span class="n">flow_to_image</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+
+<span class="n">imlist</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">noiseThresh</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">W</span> <span class="o">=</span> <span class="mi">640</span>
+<span class="n">H</span> <span class="o">=</span> <span class="mi">320</span>
+<span class="n">acctime</span><span class="o">=</span> <span class="mi">1</span>
+<span class="n">gridX</span><span class="p">,</span> <span class="n">gridY</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">W</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">H</span><span class="p">))</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">TianmoucDataReader</span><span class="p">(</span><span class="n">all_data</span><span class="p">,</span><span class="n">MAXLEN</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span><span class="n">matchkey</span> <span class="o">=</span> <span class="s1">&#39;test_exam_fan4&#39;</span><span class="p">)</span>
+
+<span class="n">show_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;=</span><span class="mi">0</span><span class="p">:</span>
+        <span class="k">continue</span>
+    <span class="k">elif</span> <span class="n">index</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="k">break</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;rpogress:&#39;</span><span class="p">,</span><span class="n">index</span><span class="p">,</span><span class="s1">&#39;/&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">))</span>
+        <span class="n">sample</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="n">F0</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;F0&#39;</span><span class="p">]</span>
+        <span class="n">F1</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;F1&#39;</span><span class="p">]</span>
+        <span class="n">tsdiff</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;tsdiff&#39;</span><span class="p">]</span>
+        <span class="n">F0show</span> <span class="o">=</span> <span class="n">F0</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">show_img</span> <span class="o">=</span> <span class="n">F0show</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">25</span><span class="o">//</span><span class="n">acctime</span><span class="p">):</span>
+            <span class="n">SD0</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">SD1</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">Tdiff</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+                <span class="c1">#print(tsdiff.shape)</span>
+                <span class="n">rawflow</span> <span class="o">=</span> <span class="n">OFNet</span><span class="o">.</span><span class="n">forward_time_range</span><span class="p">(</span><span class="n">tsdiff</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">t1</span><span class="o">=</span><span class="n">b</span><span class="o">*</span><span class="n">acctime</span><span class="p">,</span> <span class="n">t2</span><span class="o">=</span><span class="p">(</span><span class="n">b</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">acctime</span><span class="p">)</span> <span class="c1">#输出值0~1</span>
+                <span class="n">rawflow</span> <span class="o">=</span> <span class="n">rawflow</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+
+            <span class="n">SD0</span> <span class="o">=</span> <span class="n">tsdiff</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span><span class="n">b</span><span class="o">*</span><span class="n">acctime</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">SD1</span> <span class="o">=</span> <span class="n">tsdiff</span><span class="p">[</span><span class="mi">1</span><span class="p">:,(</span><span class="n">b</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">acctime</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">Tdiff</span><span class="o">=</span> <span class="n">tsdiff</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="n">b</span><span class="o">*</span><span class="n">acctime</span><span class="p">:(</span><span class="n">b</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">acctime</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">Tdiff</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Tdiff</span><span class="p">,</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="n">td</span> <span class="o">=</span> <span class="o">-</span><span class="n">tsdiff</span><span class="p">[</span><span class="mi">0</span><span class="p">,(</span><span class="n">b</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">acctime</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">tdiff_show</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">td</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">*</span><span class="mi">255</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+            <span class="n">tdiff_show</span><span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">tdiff_show</span><span class="p">)</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span>
+
+            <span class="n">Tdiff</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">Tdiff</span><span class="p">,(</span><span class="mi">320</span><span class="p">,</span><span class="mi">640</span><span class="p">),</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span>
+            <span class="n">SD0</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">SD0</span><span class="p">,(</span><span class="mi">320</span><span class="p">,</span><span class="mi">640</span><span class="p">),</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span>
+            <span class="n">SD1</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">SD1</span><span class="p">,(</span><span class="mi">320</span><span class="p">,</span><span class="mi">640</span><span class="p">),</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">)</span>
+
+
+            <span class="n">u</span> <span class="o">=</span> <span class="n">rawflow</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,:,</span> <span class="p">:]</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">rawflow</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">,:,</span> <span class="p">:]</span>
+            <span class="n">flow_show</span> <span class="o">=</span> <span class="n">flow_to_image</span><span class="p">(</span><span class="n">rawflow</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+            <span class="n">flow_show</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">flow_show</span><span class="p">,(</span><span class="mi">640</span><span class="p">,</span><span class="mi">320</span><span class="p">)))</span><span class="o">/</span><span class="mf">255.0</span>
+            <span class="n">flow_show</span> <span class="o">=</span> <span class="p">(</span><span class="n">flow_show</span><span class="o">*</span><span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flow_show</span><span class="p">,</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">225</span>
+            <span class="n">flow_show</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">mask</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">,</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)]</span><span class="o">=</span><span class="mi">0</span>
+
+            <span class="n">show_img</span> <span class="o">=</span> <span class="n">interpolate_image</span><span class="p">(</span><span class="n">show_img</span><span class="p">,</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">sparsity</span> <span class="o">=</span> <span class="mi">8</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="mi">10</span>
+            <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">640</span><span class="o">//</span><span class="n">sparsity</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">320</span><span class="o">//</span><span class="n">sparsity</span><span class="p">):</span>
+                    <span class="n">x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">*</span><span class="n">sparsity</span><span class="p">)</span>
+                    <span class="n">y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">h</span><span class="o">*</span><span class="n">sparsity</span><span class="p">)</span>
+                    <span class="n">u_ij</span> <span class="o">=</span> <span class="o">-</span><span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">x</span><span class="p">]</span>
+                    <span class="n">v_ij</span> <span class="o">=</span> <span class="o">-</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">x</span><span class="p">]</span>
+                    <span class="n">color</span> <span class="o">=</span> <span class="n">flow_show</span><span class="p">[</span><span class="n">y</span><span class="p">,</span><span class="n">x</span><span class="p">,:]</span>
+                    <span class="n">color</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="o">+</span><span class="mi">20</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">color</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">u_ij</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">v_ij</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">5</span><span class="p">:</span>
+                        <span class="n">cv2</span><span class="o">.</span><span class="n">arrowedLine</span><span class="p">(</span><span class="n">flow_show</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">),</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="n">u_ij</span><span class="o">*</span><span class="n">scale</span><span class="p">),</span><span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="o">+</span><span class="n">v_ij</span><span class="o">*</span><span class="n">scale</span><span class="p">)),</span> <span class="n">color</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span> <span class="n">tipLength</span><span class="o">=</span><span class="mf">0.15</span><span class="p">)</span>
+
+            <span class="n">tdiff_show_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">tdiff_show</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+            <span class="n">flow_show_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">flow_show</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flow_show_tensor</span><span class="p">,</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">,</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">tdiff_show_tensor</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">flow_show_tensor</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">/</span><span class="mf">255.0</span>
+            <span class="n">tdiff_show_merge</span> <span class="o">=</span> <span class="n">tdiff_show_tensor</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">imshow</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">flow_show</span><span class="o">/</span><span class="mf">255.0</span><span class="p">,</span><span class="n">tdiff_show</span><span class="p">,</span><span class="n">tdiff_show_merge</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">show_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">imshow</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">b</span><span class="o">%</span><span class="k">10</span>==0:
+                <span class="n">clear_output</span><span class="p">()</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span><span class="mi">5</span><span class="p">))</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">SD0</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">Tdiff</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">F0show</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">flow_show</span><span class="o">/</span><span class="mf">255.0</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">imshow</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Clipping</span> <span class="nb">input</span> <span class="n">data</span> <span class="n">to</span> <span class="n">the</span> <span class="n">valid</span> <span class="nb">range</span> <span class="k">for</span> <span class="n">imshow</span> <span class="k">with</span> <span class="n">RGB</span> <span class="n">data</span> <span class="p">([</span><span class="mf">0..1</span><span class="p">]</span> <span class="k">for</span> <span class="n">floats</span> <span class="ow">or</span> <span class="p">[</span><span class="mf">0..255</span><span class="p">]</span> <span class="k">for</span> <span class="n">integers</span><span class="p">)</span><span class="o">.</span>
+</pre></div>
+</div>
+<img alt="../../_images/output_9_1.png" src="../../_images/output_9_1.png" />
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">300.25799985682585</span> <span class="n">fps</span>
+<span class="mf">293.3489998601203</span> <span class="n">fps</span>
+<span class="mf">290.2030028367813</span> <span class="n">fps</span>
+<span class="mf">288.6055184751944</span> <span class="n">fps</span>
+</pre></div>
+</div>
+</section>
+<section id="id5">
+<h2>导出视频<a class="headerlink" href="#id5" title="Link to this heading"></a></h2>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">images_to_video</span><span class="p">(</span><span class="n">frame_list</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">Val_size</span><span class="o">=</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span><span class="mi">256</span><span class="p">),</span><span class="n">Flip</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">fps</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="p">(</span><span class="n">Val_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Val_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="c1"># 需要转为视频的图片的尺寸</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoWriter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="mh">0x7634706d</span> <span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">frame_list</span><span class="p">:</span>
+        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">frame</span> <span class="o">*=</span> <span class="mi">255</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+<span class="n">images_to_video</span><span class="p">(</span><span class="n">show_list</span><span class="p">,</span><span class="s1">&#39;./spynet_tianmouc_of_multiple_scale_nn.mp4&#39;</span><span class="p">,</span><span class="n">Val_size</span><span class="o">=</span><span class="p">(</span><span class="mi">640</span><span class="p">,</span><span class="mi">320</span><span class="o">*</span><span class="mi">3</span><span class="p">),</span><span class="n">Flip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">ipykernel_48437</span><span class="o">/</span><span class="mf">3373490870.</span><span class="n">py</span><span class="p">:</span><span class="mi">9</span><span class="p">:</span> <span class="ne">RuntimeWarning</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">value</span> <span class="n">encountered</span> <span class="ow">in</span> <span class="n">cast</span>
+  <span class="n">frame</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="页脚">
+        <a href="../opticalflow_LK_method/opticalflow_LK_method.html" class="btn btn-neutral float-left" title="基于LK方法的实时光流计算" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="../reconstruct_gray/reconstruct_gray.html" class="btn btn-neutral float-right" title="基于AOP的灰度重建" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2024, THU-CBICR。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

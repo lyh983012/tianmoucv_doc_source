@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tianmoucv.proc.opticalflow.spy_net &mdash; Tianmouc alpha 文档</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=406e4f49"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../../_static/translations.js?v=beaddf03"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../../../../genindex.html" />
+    <link rel="search" title="搜索" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Tianmouc
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">Outline</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tianmoucv/introduction.html">TianMouCV算法库</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Tianmouc</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">模块代码</a></li>
+      <li class="breadcrumb-item active">tianmoucv.proc.opticalflow.spy_net</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>tianmoucv.proc.opticalflow.spy_net 源代码</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">.basic</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.isp</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.proc.nn.spy_modules</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">tianmoucv.tools</span> <span class="kn">import</span> <span class="n">check_url_or_local_path</span><span class="p">,</span><span class="n">download_file</span>
+
+<div class="viewcode-block" id="TianmoucOF_SpyNet">
+<a class="viewcode-back" href="../../../../tianmoucv/introduction.html#tianmoucv.proc.opticalflow.spy_net.TianmoucOF_SpyNet">[文档]</a>
+<span class="k">class</span> <span class="nc">TianmoucOF_SpyNet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    计算稠密光流的nn方法</span>
+<span class="sd">    默认权重存储于&#39;of_0918_ver_best.ckpt&#39;</span>
+<span class="sd">    或初始化时指定ckpt_path</span>
+<span class="sd">    </span>
+<span class="sd">    parameter:</span>
+<span class="sd">    </span>
+<span class="sd">    :param imgsize: (w,h),list</span>
+<span class="sd">    :param ckpt\_path: string, path to weight dictionary</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1">#temp network</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">imgsize</span><span class="p">,</span><span class="n">ckpt_path</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">_optim</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TianmoucOF_SpyNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">current_dir</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">ckpt_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ckpt_path</span> <span class="o">=</span> <span class="s1">&#39;https://cloud.tsinghua.edu.cn/f/84ac6e32060443e2975d/?dl=1&#39;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">check_url_or_local_path</span><span class="p">(</span><span class="n">ckpt_path</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;loading..:&#39;</span><span class="p">,</span><span class="n">ckpt_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">default_file_name</span> <span class="o">=</span> <span class="s1">&#39;of_spy_ver_best.ckpt&#39;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">default_file_name</span><span class="p">):</span>
+                <span class="n">ckpt_path</span> <span class="o">=</span> <span class="n">download_file</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">ckpt_path</span><span class="p">,</span><span class="n">file_name</span><span class="o">=</span><span class="n">default_file_name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ckpt_path</span> <span class="o">=</span> <span class="n">default_file_name</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;load finished&#39;</span><span class="p">)</span>
+                
+        <span class="bp">self</span><span class="o">.</span><span class="n">flowComp</span> <span class="o">=</span> <span class="n">SpyNet</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">W</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">H</span> <span class="o">=</span> <span class="n">imgsize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gridX</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridY</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">W</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">H</span><span class="p">))</span>
+        
+        <span class="n">dict1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">ckpt_path</span><span class="p">,</span> <span class="n">map_location</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cpu&#39;</span><span class="p">))</span>
+        <span class="n">dict1</span> <span class="o">=</span> <span class="n">dict1</span><span class="p">[</span><span class="s1">&#39;state_dict_OF&#39;</span><span class="p">]</span>
+        <span class="n">dict_flowComp</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dict1</span><span class="p">:</span>
+            <span class="n">new_key_list</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="n">new_key</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">new_key_list</span><span class="p">:</span>
+                <span class="n">new_key</span> <span class="o">+=</span> <span class="n">e</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span>
+            <span class="n">new_key</span> <span class="o">=</span> <span class="n">new_key</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s1">&#39;flowComp&#39;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                <span class="n">dict_flowComp</span><span class="p">[</span><span class="n">new_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">dict1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> 
+        <span class="bp">self</span><span class="o">.</span><span class="n">flowComp</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">dict_flowComp</span><span class="p">,</span><span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flowComp</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+            <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
+            
+        <span class="n">main_version</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">__version__</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">main_version</span><span class="o">==</span><span class="mi">2</span> <span class="ow">and</span> <span class="n">_optim</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;compiling model for pytorch version&gt;= 2.0.0&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">flowComp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flowComp</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;compiled!&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TianmoucOF_SpyNet.forward_time_range">
+<a class="viewcode-back" href="../../../../tianmoucv/introduction.html#tianmoucv.proc.opticalflow.spy_net.TianmoucOF_SpyNet.forward_time_range">[文档]</a>
+    <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span> 
+    <span class="k">def</span> <span class="nf">forward_time_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tsdiff</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span><span class="n">t1</span><span class="p">,</span><span class="n">t2</span><span class="p">,</span><span class="n">F0</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Args:</span>
+<span class="sd">          @tsdiff: [c,n,w,h], -1~1,torch，decoder的输出直接concate的结果</span>
+<span class="sd">          </span>
+<span class="sd">          @t1,t2 \in [0,n]  calculate the OF between t1-t2</span>
+<span class="sd">          </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flowComp</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">device</span>
+            <span class="k">break</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tsdiff</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">==</span><span class="mi">3</span><span class="p">:</span>
+            <span class="n">tsdiff</span> <span class="o">=</span> <span class="n">tsdiff</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">tsdiff</span> <span class="o">=</span> <span class="n">tsdiff</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">TD_0_t</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tsdiff</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="n">t1</span><span class="p">:</span><span class="n">t2</span><span class="p">,</span><span class="o">...</span><span class="p">],</span><span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">SD0</span> <span class="o">=</span> <span class="n">tsdiff</span><span class="p">[:,</span><span class="mi">1</span><span class="p">:,</span><span class="n">t1</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+        <span class="n">SD1</span> <span class="o">=</span> <span class="n">tsdiff</span><span class="p">[:,</span><span class="mi">1</span><span class="p">:,</span><span class="n">t2</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+        <span class="n">TD_t_0</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">TD_0_t</span> 
+        <span class="c1"># Part1. warp</span>
+        <span class="n">stime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">Flow_1_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flowComp</span><span class="p">(</span><span class="n">TD_t_0</span><span class="p">,</span> <span class="n">SD0</span><span class="p">,</span> <span class="n">SD1</span><span class="p">)</span> <span class="c1">#输出值0~1</span>
+        <span class="n">etime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">frameTime</span> <span class="o">=</span> <span class="n">etime</span> <span class="o">-</span> <span class="n">stime</span>
+        <span class="nb">print</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">frameTime</span><span class="p">,</span> <span class="s1">&#39;fps&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Flow_1_0</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2024, THU-CBICR。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
